@@ -1,119 +1,61 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "memory.h"
-#include "config.h"
-#include "page_table.h"
-#include "tlb.h"
-
-static signed char physical_memory[NUM_FRAMES][FRAME_SIZE];
-
-/*
- * Indica qual página está carregada em cada quadro.
- * Valor -1 indica quadro livre.
- */
-static int frame_to_page[NUM_FRAMES];
-
-static FILE *backing = NULL;
-
-void memory_init(FILE *backing_store)
-{
-    backing = backing_store;
-
-    for (int i = 0; i < NUM_FRAMES; i++) {
-        frame_to_page[i] = -1;
-
-        for (int j = 0; j < FRAME_SIZE; j++) {
-            physical_memory[i][j] = 0;
-        }
-    }
-}
-
-static int find_free_frame(void)
-{
-    for (int i = 0; i < NUM_FRAMES; i++) {
-        if (frame_to_page[i] == -1) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
 int handle_page_fault(int page)
 {
-    /*
-     * TODO:
-     * 1. Procurar quadro livre.
-     * 2. Se não houver quadro livre, selecionar página vítima.
-     * 3. Invalidar página vítima na tabela de páginas.
-     * 4. Remover página vítima do TLB.
-     * 5. Ler a página correta do BACKING_STORE.bin.
-     * 6. Atualizar frame_to_page.
-     * 7. Atualizar tabela de páginas.
-     * 8. Retornar número do frame.
-     */
-
     int frame = find_free_frame();
 
+    // 2. Se não houver quadro livre, selecionar página vítima
     if (frame == -1) {
         int victim_page = select_victim_page();
+        
+        // Obter o quadro da página vítima para reutilizá-lo
+        for (int i = 0; i < NUM_FRAMES; i++) {
+            if (frame_to_page[i] == victim_page) {
+                frame = i;
+                break;
+            }
+        }
 
-        /*
-         * TODO:
-         * Obter o quadro da página vítima.
-         * Invalidar tabela e TLB.
-         */
-
-        (void) victim_page;
-
-        frame = 0;
+        // 3. Invalidar página vítima na tabela de páginas [cite: 80]
+        page_table_invalidate(victim_page);
+        
+        // 4. Remover página vítima do TLB [cite: 81, 142]
+        tlb_invalidate(victim_page);
     }
 
-    /*
-     * TODO:
-     * Fazer fseek para page * PAGE_SIZE.
-     * Fazer fread de PAGE_SIZE bytes para physical_memory[frame].
-     */
+    // 5. Ler a página correta do BACKING_STORE.bin [cite: 67, 71]
+    fseek(backing, page * PAGE_SIZE, SEEK_SET);
+    fread(physical_memory[frame], sizeof(signed char), PAGE_SIZE, backing);
 
-    if (backing == NULL) {
-        fprintf(stderr, "Erro interno: BACKING_STORE nao inicializado.\n");
-        exit(1);
-    }
+    // 6. Atualizar frame_to_page
+    frame_to_page[frame] = page;
 
-    (void) page;
+    // 7. Atualizar tabela de páginas
+    page_table_update(page, frame);
 
     return frame;
 }
 
 int select_victim_page(void)
 {
-    /*
-     * TODO:
-     * Selecionar a página válida com menor aging_counter.
-     * Em caso de empate, qualquer critério consistente pode ser usado.
-     */
+    int victim_page = -1;
+    int min_aging = 256; // Contador de 8 bits, valor máximo possível é 255
 
-    return 0;
+    // 9. Selecionar a página com o menor valor do contador [cite: 79, 91]
+    for (int i = 0; i < NUM_FRAMES; i++) {
+        int page = frame_to_page[i];
+        if (page != -1) {
+            int aging_counter = page_table_get_aging(page);
+            if (aging_counter < min_aging) {
+                min_aging = aging_counter;
+                victim_page = page;
+            }
+        }
+    }
+
+    return victim_page;
 }
 
 signed char read_memory(int frame, int offset)
 {
-    /*
-     * TODO:
-     * Retornar o byte armazenado em physical_memory[frame][offset].
-     */
-
-    (void) frame;
-    (void) offset;
-    return 0;
-}
-
-int get_page_loaded_in_frame(int frame)
-{
-    if (frame < 0 || frame >= NUM_FRAMES) {
-        return -1;
-    }
-
-    return frame_to_page[frame];
+    // Retorna o byte armazenado na memória física
+    return physical_memory[frame][offset];
 }
