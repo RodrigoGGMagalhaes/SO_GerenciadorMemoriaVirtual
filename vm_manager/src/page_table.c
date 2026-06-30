@@ -82,7 +82,7 @@ int page_table_is_valid(int page)
     return page_table[page].valid;
 }
 
-unsigned char page_table_get_aging_counter(int page)
+unsigned char page_table_get_aging(int page)
 {
     if (page < 0 || page >= PAGE_TABLE_SIZE) {
         return 0;

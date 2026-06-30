@@ -18,7 +18,7 @@ int handle_page_fault(int page)
         page_table_invalidate(victim_page);
         
         // 4. Remover página vítima do TLB [cite: 81, 142]
-        tlb_invalidate(victim_page);
+        tlb_remove(victim_page);
     }
 
     // 5. Ler a página correta do BACKING_STORE.bin [cite: 67, 71]

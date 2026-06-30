@@ -28,6 +28,6 @@ int page_table_get_frame(int page);
 
 int page_table_is_valid(int page);
 
-unsigned char page_table_get_aging_counter(int page);
+unsigned char page_table_get_aging(int page);
 
 #endif
