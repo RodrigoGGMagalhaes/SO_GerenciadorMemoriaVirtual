@@ -1,4 +1,38 @@
+
+#include <stdio.h>
+#include "memory.h"
+#include "config.h"
+#include "page_table.h"
+#include "tlb.h"
+
+/* Variáveis de estado global para a memória física */
+static signed char physical_memory[NUM_FRAMES][FRAME_SIZE];
+static int frame_to_page[NUM_FRAMES];
+static FILE *backing = NULL;
+
+/* Inicializa a memória e guarda a referência do ficheiro BACKING_STORE */
+void memory_init(FILE *backing_store)
+{
+    backing = backing_store;
+    for (int i = 0; i < NUM_FRAMES; i++) {
+        frame_to_page[i] = -1; /* -1 indica que o quadro está livre */
+    }
+}
+
+/* Procura o primeiro quadro livre na memória física */
+int find_free_frame(void)
+{
+    for (int i = 0; i < NUM_FRAMES; i++) {
+        if (frame_to_page[i] == -1) {
+            return i;
+        }
+    }
+    return -1; /* Retorna -1 se a memória estiver cheia */
+}
+
+
 int handle_page_fault(int page)
+
 {
     int frame = find_free_frame();
 
